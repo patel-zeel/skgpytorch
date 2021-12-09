@@ -1,9 +1,10 @@
 import os
 
 # Manually modify following parameters to customize the structure of your project
-
-REPO_HOME_PATH = "/home/patel_zeel"
-REPO_NAME = "pip-template"
+path = os.path.abspath(os.path.dirname(__file__)).split("/")
+# print(path)
+REPO_HOME_PATH = "/".join(path[:-1])
+REPO_NAME = path[-1]
 PACKAGE_NAME = REPO_NAME
 VERSION = "0.1.0"
 AUTHOR = "Zeel B Patel"
@@ -33,7 +34,7 @@ with open(os.path.join(full_path, "setup.cfg"), "w") as f:
 
 # Modify CI
 
-with open(os.path.join(full_path, ".github/workflows/CI.yml"), "r") as f:
+with open(os.path.join(full_path, ".github/workflows/CI.template"), "r") as f:
     content = f.read()
 
 with open(os.path.join(full_path, ".github/workflows/CI.yml"), "w") as f:
