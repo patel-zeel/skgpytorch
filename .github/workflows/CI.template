@@ -27,7 +27,7 @@ jobs:
           COVERALLS_FLAG_NAME: ${{ matrix.python-version }}
           COVERALLS_PARALLEL: true
         run: |
-          pytest -v --cov=skgptorch --cov-report term-missing
+          pytest -v --cov=<reponame> --cov-report term-missing
           coveralls --service=github
   coveralls:
     name: Finish coverage

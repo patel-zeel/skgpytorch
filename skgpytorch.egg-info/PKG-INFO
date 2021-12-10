@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: skgpytorch
-Version: 0.1.0
+Version: 0.1.2.dev1+gca7ca93.d20211210
 Summary: example description
 Home-page: https://github.com/patel-zeel/skgpytorch
 Author: Zeel B Patel
@@ -12,6 +12,7 @@ Description-Content-Type: text/markdown
 License-File: LICENSE
 
 # skgpytorch
+[![Coverage Status](https://coveralls.io/repos/github/patel-zeel/skgpytorch/badge.svg?branch=main)](https://coveralls.io/github/patel-zeel/skgpytorch?branch=main)
 
 GPyTorch Models in Scikit-learn wrapper.
 
