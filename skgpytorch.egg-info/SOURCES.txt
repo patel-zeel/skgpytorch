@@ -1,0 +1,11 @@
+LICENSE
+README.md
+setup.cfg
+setup.py
+skgpytorch.egg-info/PKG-INFO
+skgpytorch.egg-info/SOURCES.txt
+skgpytorch.egg-info/dependency_links.txt
+skgpytorch.egg-info/requires.txt
+skgpytorch.egg-info/top_level.txt
+tests/__init__.py
+tests/test_models.py

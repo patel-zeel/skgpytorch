@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: skgptorch
+Version: 0.1.0
+Summary: example description
+Home-page: https://github.com/patel-zeel/skgptorch
+Author: Zeel B Patel
+Author-email: patel_zeel@iitgn.ac.in
+License: MIT
+Platform: UNKNOWN
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# skgpytorch
+
+GPyTorch Models in Scikit-learn wrapper.
+
