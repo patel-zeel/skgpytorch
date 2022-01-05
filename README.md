@@ -1,7 +1,7 @@
 # skgpytorch
 [![Coverage Status](https://coveralls.io/repos/github/patel-zeel/skgpytorch/badge.svg?branch=main)](https://coveralls.io/github/patel-zeel/skgpytorch?branch=main)
 
-[GPyTorch](https://gpytorch.ai/) Models in Scikit-learn wrapper.
+[GPyTorch](https://gpytorch.ai/) Models in [Scikit-learn](https://scikit-learn.org/stable/) wrapper.
 
 # Example
 
