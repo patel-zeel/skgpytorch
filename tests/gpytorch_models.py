@@ -15,11 +15,16 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 
 class exact_gp_regressor_from_gpytorch:
-    def __init__(self, data, kernel, seed, n_iters):
+    def __init__(self, data, kernel, seed, n_iters, device):
         # initialize likelihood and model
         torch.manual_seed(seed)
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
         self.model = ExactGPModel(data.X_train, data.Y_train, self.likelihood, kernel)
+
+        data.X_train = data.X_train.to(device)
+        data.Y_train = data.Y_train.to(device)
+        self.model = self.model.to(device)
+        self.likelihood = self.likelihood.to(device)
 
         # Find optimal model hyperparameters
         self.model.train()
@@ -35,7 +40,7 @@ class exact_gp_regressor_from_gpytorch:
 
         for param in self.model.parameters():
             torch.nn.init.normal_(param, mean=0, std=0.1)
-            print("old", param)
+            # print("old", param)
 
         for _ in range(n_iters):
             # Zero gradients from previous iteration
@@ -53,4 +58,4 @@ class exact_gp_regressor_from_gpytorch:
         # Test points are regularly spaced along [0,1]
         # Make predictions by feeding model through likelihood
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            self.pred_dist = self.likelihood(self.model(data.X_test))
+            self.pred_dist = self.likelihood(self.model(data.X_test.to(device)))

@@ -1,2 +1,0 @@
-skgpytorch
-tests

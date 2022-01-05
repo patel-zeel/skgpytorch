@@ -1,6 +1,5 @@
 import pytest
 
-import pytest
 from bayesian_benchmarks.data import Boston
 
 import torch
@@ -23,21 +22,28 @@ def load_data_and_params():
 
 
 def test_nlpd_equal():
-
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     data, kernel, n_iters = load_data_and_params()
 
     for seed in range(5):
-        gpytorch_model = exact_gp_regressor_from_gpytorch(data, kernel, seed, n_iters)
-        gp = ExactGPRegressor(data.X_train, data.Y_train, kernel, random_state=seed)
-        gp.fit(data.X_train, data.Y_train, n_iters=n_iters)
+        gpytorch_model = exact_gp_regressor_from_gpytorch(
+            data, kernel, seed, n_iters, device
+        )
+        gp = ExactGPRegressor(
+            data.X_train, data.Y_train, kernel, random_state=seed, device=device
+        )
+        gp.fit(n_iters=n_iters)
 
         a = negative_log_predictive_density(
-            gpytorch_model.model, gpytorch_model.likelihood, data.X_test, data.Y_test
+            gpytorch_model.model,
+            gpytorch_model.likelihood,
+            data.X_test.to(device),
+            data.Y_test,
         )
         b = negative_log_predictive_density(
-            gp.model, gp.likelihood, data.X_test, data.Y_test
+            gp.model, gp.likelihood, data.X_test.to(device), data.Y_test
         )
-        assert torch.allclose(a, b)
+        assert abs(a - b) < 1e-5
 
 
 def test_nlpd_value():
@@ -45,8 +51,10 @@ def test_nlpd_value():
 
     n_iters = 100
 
-    gp = ExactGPRegressor(data.X_train, data.Y_train, kernel, random_state=0)
-    gp.fit(data.X_train, data.Y_train, n_iters=n_iters)
+    gp = ExactGPRegressor(
+        data.X_train, data.Y_train, kernel, random_state=0, device="cpu"
+    )
+    gp.fit(n_iters)
 
     res = negative_log_predictive_density(
         gp.model, gp.likelihood, data.X_test, data.Y_test

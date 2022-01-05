@@ -5,15 +5,22 @@ import warnings
 
 
 class BaseRegressor:
-    def __init__(self, train_x, train_y, kernel, random_state):
+    def __init__(self, train_x, train_y, kernel, random_state, verbose, device):
         self.train_x = train_x
         self.train_y = train_y
         self.kernel = kernel
         self.history = {"train_loss": []}
+        self.verbose = verbose
+        self.device = device
         if random_state is not None:
             torch.manual_seed(random_state)
 
-    def fit(self, x, y, n_iters):
+        self.train_x = self.train_x.to(self.device)
+        self.train_y = self.train_y.to(self.device)
+        self.model = self.model.to(device)
+        self.likelihood = self.likelihood.to(device)
+
+    def fit(self, n_iters):
         self.model.train()
         self.likelihood.train()
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
@@ -27,17 +34,22 @@ class BaseRegressor:
 
         for param in self.model.parameters():
             torch.nn.init.normal_(param, mean=0, std=0.1)
-            print("new", param)
 
-        for _ in range(n_iters):
+        for i in range(n_iters):
             self.optimizer.zero_grad()
-            output = self.model(x)
-            loss = -self.mll(output, y)
+            output = self.model(self.train_x)
+            loss = -self.mll(output, self.train_y)
             loss.backward()
+            if self.verbose:
+                print("Iter: {}, Loss: {:.4f}".format(i, loss.item()))
             self.history["train_loss"].append(loss.item())
             self.optimizer.step()
 
     def predict(self, x, dist_only=False):
+        if "cuda" in self.device:
+            x = x.cuda()
+        else:
+            x = x.cpu()
         if len(self.history["train_loss"]) < 1:
             warnings.warn(
                 "Model is not fitted yet. This may cause unexpected behavior."
@@ -59,7 +71,9 @@ class ExactGPRegressor(BaseRegressor):
     Call the constructor of base class after defining the model.
     """
 
-    def __init__(self, train_x, train_y, kernel, random_state=None):
+    def __init__(
+        self, train_x, train_y, kernel, random_state=None, verbose=False, device="cpu"
+    ):
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
         self.model = ExactGPModel(train_x, train_y, self.likelihood, kernel)
-        super().__init__(train_x, train_y, kernel, random_state)
+        super().__init__(train_x, train_y, kernel, random_state, verbose, device)
