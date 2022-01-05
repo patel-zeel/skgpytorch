@@ -35,29 +35,11 @@ def test_nlpd_equal():
         gp.fit(n_iters=n_iters)
 
         a = negative_log_predictive_density(
-            gpytorch_model.model,
-            gpytorch_model.likelihood,
+            gp.predict(data.X_test.to(device), dist_only=True),
             data.X_test.to(device),
             data.Y_test,
         )
         b = negative_log_predictive_density(
-            gp.model, gp.likelihood, data.X_test.to(device), data.Y_test
+            gpytorch_model.pred_dist, data.X_test.to(device), data.Y_test
         )
         assert abs(a - b) < 1e-5
-
-
-def test_nlpd_value():
-    data, kernel, n_iters = load_data_and_params()
-
-    n_iters = 100
-
-    gp = ExactGPRegressor(
-        data.X_train, data.Y_train, kernel, random_state=0, device="cpu"
-    )
-    gp.fit(n_iters)
-
-    res = negative_log_predictive_density(
-        gp.model, gp.likelihood, data.X_test, data.Y_test
-    )
-
-    assert res < 0
