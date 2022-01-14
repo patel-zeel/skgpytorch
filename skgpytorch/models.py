@@ -34,7 +34,7 @@ class BaseRegressor:
         for restart in range(n_restarts):
             history = {"train_loss": []}
             for param in self.model.parameters():
-                torch.nn.init.normal_(param, mean=0, std=0.1)
+                torch.nn.init.normal_(param, mean=0, std=1)
 
             for i in range(n_iters):
                 self.optimizer.zero_grad()
