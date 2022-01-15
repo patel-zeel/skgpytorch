@@ -11,6 +11,7 @@ class BaseRegressor:
         self.kernel = kernel
         self.history = {"train_loss": []}
         self.device = device
+        self.best_restart = None
         if random_state is not None:
             torch.manual_seed(random_state)
 
@@ -18,6 +19,7 @@ class BaseRegressor:
         self.train_y = self.train_y.to(self.device)
         self.model = self.model.to(device)
         self.likelihood = self.likelihood.to(device)
+        
 
     def fit(self, n_iters=1, n_restarts=1, verbose=0, verbose_gap=1):
         self.model.train()
@@ -32,7 +34,7 @@ class BaseRegressor:
 
         best_loss = float("inf")
         for restart in range(n_restarts):
-            history = {"train_loss": []}
+            self.history['train_loss'].append([])
             for param in self.model.parameters():
                 torch.nn.init.normal_(param, mean=0, std=0.1)
 
@@ -47,7 +49,7 @@ class BaseRegressor:
                             restart, i, loss.item(), best_loss
                         )
                     )
-                history["train_loss"].append(loss.item())
+                self.history["train_loss"][restart].append(loss.item())
                 self.optimizer.step()
 
             # Last loss
@@ -56,11 +58,11 @@ class BaseRegressor:
 
             # Check if best loss
             if loss.item() < best_loss:
+                self.best_restart = restart
                 best_loss = loss.item()
                 best_model_state = self.model.state_dict()
                 best_likelihood_state = self.likelihood.state_dict()
                 # self.likelihood.save_state_dict()
-                self.history = history
 
             # Load the best model
             self.model.load_state_dict(best_model_state)

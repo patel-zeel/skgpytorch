@@ -1,5 +1,5 @@
 numpy
-torch
+torch>=1.8
 gpytorch
 
 setuptools_scm[toml]
