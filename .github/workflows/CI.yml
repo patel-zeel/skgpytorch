@@ -18,7 +18,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          pip install --upgrade pip==20.2.2 setuptools numpy Cython
+
+          pip install -Ue .
           pip install --no-cache-dir -U -r requirements.txt | cat
           pip install pytest pytest-cov coveralls
           pip install --upgrade numpy
