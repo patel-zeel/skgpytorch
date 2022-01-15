@@ -20,6 +20,7 @@ jobs:
         run: |
 
           pip install -Ue .
+          git+https://github.com/hughsalimbeni/bayesian_benchmarks.git
           pip install --no-cache-dir -U -r requirements.txt | cat
           pip install pytest pytest-cov coveralls
           pip install --upgrade numpy
