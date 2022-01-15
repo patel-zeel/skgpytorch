@@ -1,3 +1,0 @@
--e .
-git+https://github.com/hughsalimbeni/bayesian_benchmarks.git
-nsgptorch

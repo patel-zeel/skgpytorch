@@ -1,7 +1,8 @@
+-e .
 numpy
 torch>=1.8
 gpytorch
-
+nsgptorch
+git+https://github.com/hughsalimbeni/bayesian_benchmarks.git
 setuptools_scm[toml]
-
 setuptools_scm_git_archive
