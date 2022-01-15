@@ -23,9 +23,9 @@ def load_data_and_params():
 
 @pytest.mark.nlpd
 def test_nlpd_equal():
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    device = "cpu"
-    print(f"device:{device}")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cpu"
+    # print(f"device:{device}")
     data, kernel, n_iters = load_data_and_params()
 
     for seed in range(5):
