@@ -1,2 +1,2 @@
 git+https://github.com/hughsalimbeni/bayesian_benchmarks.git
-nsgp_torch
+nsgptorch

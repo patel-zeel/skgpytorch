@@ -5,7 +5,7 @@ from bayesian_benchmarks.data import Boston
 import torch
 import gpytorch
 from gpytorch.kernels import ScaleKernel, RBFKernel
-from nsgp_torch.kernels import rbf
+from nsgptorch.kernels import rbf
 from skgpytorch.models import ExactGPRegressor, ExactNSGPRegressor
 from skgpytorch.metrics import negative_log_predictive_density, mean_squared_error
 from .gpytorch_models import exact_gp_regressor_from_gpytorch

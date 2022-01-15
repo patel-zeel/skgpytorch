@@ -1,6 +1,6 @@
 import torch
 from .base import BaseRegressor
-from nsgp_torch.models import GP
+from nsgptorch.models import GP
 import warnings
 
 
