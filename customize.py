@@ -44,7 +44,7 @@ with open(os.path.join(full_path, ".gitignore"), "w") as f:
     f.write("__pycache__/\n")
     f.write("*.vscode\n")
     f.write("*.pyc\n")
-    f.write(f"{PACKAGE_NAME}/._version.py\n")
+    f.write(f"{PACKAGE_NAME}/_version.py\n")
 
 
 # Write pyproject.toml

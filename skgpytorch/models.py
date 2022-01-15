@@ -19,7 +19,6 @@ class BaseRegressor:
         self.train_y = self.train_y.to(self.device)
         self.model = self.model.to(device)
         self.likelihood = self.likelihood.to(device)
-        
 
     def fit(self, n_iters=1, n_restarts=1, verbose=0, verbose_gap=1):
         self.model.train()
@@ -34,9 +33,9 @@ class BaseRegressor:
 
         best_loss = float("inf")
         for restart in range(n_restarts):
-            self.history['train_loss'].append([])
+            self.history["train_loss"].append([])
             for param in self.model.parameters():
-                torch.nn.init.normal_(param, mean=0, std=0.1)
+                torch.nn.init.normal_(param, mean=0.0, std=1.0)
 
             for i in range(n_iters):
                 self.optimizer.zero_grad()

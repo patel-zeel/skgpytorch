@@ -39,7 +39,7 @@ class exact_gp_regressor_from_gpytorch:
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
         for param in self.model.parameters():
-            torch.nn.init.normal_(param, mean=0, std=0.1)
+            torch.nn.init.normal_(param, mean=0.0, std=1.0)
             # print("old", param)
 
         for _ in range(n_iters):
