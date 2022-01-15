@@ -13,10 +13,10 @@ def test_exact_gp_regressor():
     n_iters = 5
 
     data = Boston()
-    data.X_train = torch.tensor(data.X_train, dtype=torch.float).to(device)
-    data.Y_train = torch.tensor(data.Y_train, dtype=torch.float).ravel().to(device)
-    data.X_test = torch.tensor(data.X_test, dtype=torch.float).to(device)
-    data.Y_test = torch.tensor(data.Y_test, dtype=torch.float).ravel().to(device)
+    data.X_train = torch.tensor(data.X_train, dtype=torch.float)
+    data.Y_train = torch.tensor(data.Y_train, dtype=torch.float).ravel()
+    data.X_test = torch.tensor(data.X_test, dtype=torch.float)
+    data.Y_test = torch.tensor(data.Y_test, dtype=torch.float).ravel()
     kernels = [
         ScaleKernel(RBFKernel(ard_num_dims=data.X_train.shape[1])),
         ScaleKernel(MaternKernel(ard_num_dims=data.X_train.shape[1])),
@@ -31,11 +31,10 @@ def test_exact_gp_regressor():
                 data.X_train,
                 data.Y_train,
                 kernel,
-                random_state=seed,
                 device=device,
             )
-            gp.fit(n_iters=n_iters)
-            pred_mean, pred_var = gp.predict(data.X_test)
+            gp.fit(n_iters=n_iters, random_state=seed)
+            pred_dist = gp.predict(data.X_train, data.Y_train, data.X_test)
 
-            assert torch.allclose(pred_var, gpytorch_model.pred_dist.variance)
-            assert torch.allclose(pred_mean, gpytorch_model.pred_dist.mean)
+            assert torch.allclose(pred_dist.variance, gpytorch_model.pred_dist.variance)
+            assert torch.allclose(pred_dist.mean, gpytorch_model.pred_dist.mean)
