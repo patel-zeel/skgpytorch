@@ -10,12 +10,12 @@ class BaseRegressor(torch.nn.Module):
         super().__init__()
         self.history = {"train_loss": []}
         self.best_restart = None
-        self.res = faiss.StandardGpuResources()
 
     def compute_train_nn_idx(self, k):
         x = (self.train_x.data.float()).cpu().numpy()
         self.cpu_index = faiss.IndexFlatL2(self.train_x.size(-1))
         if self.train_x.is_cuda:
+            self.res = faiss.StandardGpuResources()
             self.gpu_index = faiss.index_cpu_to_gpu(self.res, 1, self.cpu_index)
             self.gpu_index.add(x)
             self.train_nn_idx = (
@@ -25,7 +25,7 @@ class BaseRegressor(torch.nn.Module):
             )
         else:
             self.cpu_index.add(x)
-            self.train_nn_idx = torch.from_numpy(self.cpu_index.search(x, 16)[1]).long()
+            self.train_nn_idx = torch.from_numpy(self.cpu_index.search(x, k)[1]).long()
 
     def fit(
         self,
