@@ -18,19 +18,23 @@ test_x = torch.rand(10, 1)
 test_y = torch.rand(10)
 
 kernel = ScaleKernel(RBFKernel(ard_num_dims=train_x.shape[1]))
-gp = ExactGPRegressor(train_x, train_y, kernel, random_state=0, device="cpu")
+gp = ExactGPRegressor(train_x, train_y, kernel)
 
 # Fit the model
-gp.fit(n_iters=10, verbose=True, n_restarts=2, verbose_gap=2)
+gp.fit(n_epochs=10, verbose=True, n_restarts=1, verbose_gap=2, batch_size=10, lr=0.1, random_state=0)
 
 # Get the predictions
-# f_mean, f_var = gp.predict(test_x)
-# OR
-pred_dist = gp.predict(test_x, dist_only=True)
+pred_dist = gp.predict(test_x)
 
-# Calculate metrics
-print("MSE:", mean_squared_error(pred_dist, test_x, test_y))
-print("NLPD:", negative_log_predictive_density(pred_dist, test_x, test_y))
+# Access properties of predictive distribution
+pred_mean = pred_dist.mean # Mean
+pred_var = pred_dist.variance # Variance
+pred_stddev = pred_dist.stddev # Standard deviation
+lower, upper = pred_dist.confidence_region() # 95% confidence region
+
+# Calculate metrics (Soon this will be implemented in gpytorch itself)
+print("MSE:", mean_squared_error(pred_dist, test_y))
+print("NLPD:", negative_log_predictive_density(pred_dist, test_y))
 ```
 
 ```bash
