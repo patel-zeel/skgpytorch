@@ -20,8 +20,8 @@ test_y = torch.rand(10)
 kernel = ScaleKernel(RBFKernel(ard_num_dims=train_x.shape[1]))
 gp = ExactGPRegressor(train_x, train_y, kernel)
 
-# Fit the model
-gp.fit(n_epochs=10, verbose=True, n_restarts=1, verbose_gap=2, batch_size=10, lr=0.1, random_state=0)
+# Fit the model (This supports batch training of GP models as well)
+gp.fit(n_epochs=2, verbose=True, n_restarts=1, verbose_gap=2, batch_size=10, lr=0.1, random_state=0)
 
 # Get the predictions
 pred_dist = gp.predict(test_x)
