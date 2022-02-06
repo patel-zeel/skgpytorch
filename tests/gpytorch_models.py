@@ -24,11 +24,9 @@ class exact_gp_regressor_from_gpytorch:
         data.X_train = data.X_train.to(device)
         data.Y_train = data.Y_train.to(device)
         self.model = self.model.to(device)
-        self.likelihood = self.likelihood.to(device)
 
         # Find optimal model hyperparameters
         self.model.train()
-        self.likelihood.train()
 
         # Use the adam optimizer
         optimizer = torch.optim.Adam(
@@ -38,11 +36,11 @@ class exact_gp_regressor_from_gpytorch:
         # "Loss" for GPs - the marginal log likelihood
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
-        for param in self.model.parameters():
-            torch.nn.init.normal_(param, mean=0.0, std=1.0)
-            # print("old", param)
+        # for param in self.model.parameters():
+        #     torch.nn.init.normal_(param, mean=0.0, std=1.0)
+        # print("gpytorch", print(list(self.model.named_parameters())))
 
-        for _ in range(n_iters):
+        for epoch in range(n_iters):
             # Zero gradients from previous iteration
             optimizer.zero_grad()
             # Output from model
@@ -50,6 +48,7 @@ class exact_gp_regressor_from_gpytorch:
             # Calc loss and backprop gradients
             loss = -mll(output, data.Y_train)
             loss.backward()
+            print("Iter: {}, Loss: {:.4f}".format(epoch, loss.item()))
             optimizer.step()
 
         self.model.eval()

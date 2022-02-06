@@ -14,18 +14,19 @@ class BaseRegressor(torch.nn.Module):
     def compute_train_nn_idx(self, k):
         x = (self.train_x.data.float()).cpu().numpy()
         self.cpu_index = faiss.IndexFlatL2(self.train_x.size(-1))
-        if self.train_x.is_cuda:
-            self.res = faiss.StandardGpuResources()
-            self.gpu_index = faiss.index_cpu_to_gpu(self.res, 1, self.cpu_index)
-            self.gpu_index.add(x)
-            self.train_nn_idx = (
-                torch.from_numpy(self.gpu_index.search(x, k)[1])
-                .long()
-                .to(self.train_x.device)
-            )
-        else:
-            self.cpu_index.add(x)
-            self.train_nn_idx = torch.from_numpy(self.cpu_index.search(x, k)[1]).long()
+
+        #### Not using GPU becasue it supports only x <= 2048 points
+        # self.res = faiss.StandardGpuResources()
+        # self.gpu_index = faiss.index_cpu_to_gpu(self.res, 1, self.cpu_index)
+        # self.gpu_index.add(x)
+        # self.train_nn_idx = (
+        #     torch.from_numpy(self.gpu_index.search(x, k)[1])
+        #     .long()
+        #     .to(self.train_x.device)
+        # )
+
+        self.cpu_index.add(x)
+        self.train_nn_idx = torch.from_numpy(self.cpu_index.search(x, k)[1]).long()
 
     def fit(
         self,
@@ -42,8 +43,8 @@ class BaseRegressor(torch.nn.Module):
         if batch_size is None:
             batch_size = self.train_x.shape[0]
 
-        self.model.train()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        self.model.train()
 
         if len(self.history["train_loss"]) > 0:
             warnings.warn(
@@ -55,9 +56,9 @@ class BaseRegressor(torch.nn.Module):
         best_loss = float("inf")
         for restart in range(n_restarts):
             self.history["train_loss"].append([])
-            for param in self.model.parameters():
-                torch.nn.init.normal_(param, mean=0.0, std=1.0)
-
+            if restart > 0:  # Don't reset the model if it's the first restart
+                for param in self.model.parameters():
+                    torch.nn.init.normal_(param, mean=0.0, std=1.0)
             for epoch in range(n_epochs):
                 for iteration in range(self.train_x.shape[0] // batch_size):
                     idx = torch.randint(low=0, high=self.train_x.shape[0], size=(1,))[0]
