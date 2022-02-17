@@ -18,11 +18,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-
           pip install -Ue .
           pip install git+https://github.com/hughsalimbeni/bayesian_benchmarks.git
           pip install --no-cache-dir -U -r requirements.txt | cat
           pip install pytest pytest-cov coveralls
+          pip install setuptools_scm[toml] setuptools_scm_git_archive
           pip install --upgrade numpy
       - name: Test
         env:
