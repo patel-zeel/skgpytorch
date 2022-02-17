@@ -56,8 +56,8 @@ class BaseRegressor(torch.nn.Module):
         X_batch = self.train_x
         y_batch = self.train_y
         best_loss = float("inf")
-        n_iters = 1 + self.train_x.shape[0] // batch_size
-        best_model_state = None
+        n_iters = max(1, self.train_x.shape[0] // batch_size)
+        best_mll_state = None
         self.history["epoch_loss"] = []
         self.history["iter_loss"] = []
 
@@ -68,9 +68,9 @@ class BaseRegressor(torch.nn.Module):
             if restart > 0:  # Don't reset the model if it's the first restart
                 for param in self.mll.parameters():
                     torch.nn.init.normal_(param, mean=0.0, std=1.0)
-            for epoch in range(n_epochs):
+            for epoch in range(1, n_epochs+1):
                 loss = 0
-                for iteration in range(n_iters):
+                for iteration in range(1, n_iters+1):
                     if batch_mode:
                         idx = torch.randint(
                             low=0, high=self.train_x.shape[0], size=(1,)
@@ -85,10 +85,10 @@ class BaseRegressor(torch.nn.Module):
                         batch_loss.item())
                     batch_loss.backward()
                     loss += batch_loss.item()
-                    if verbose and epoch % verbose_gap == 0:
+                    if verbose and (iteration % verbose_gap) == 0:
                         print(
-                            "restart: {}, iter: {}, batch_loss: {:.4f}".format(
-                                restart, epoch, loss
+                            "restart: {}, epoch: {}, iter: {}, loss: {:.4f}".format(
+                                restart, epoch, iteration, loss
                             )
                         )
                     self.optimizer.step()
@@ -99,11 +99,11 @@ class BaseRegressor(torch.nn.Module):
             if loss < best_loss:
                 self.best_restart = restart
                 best_loss = loss
-                best_model_state = self.mll.state_dict()
+                best_mll_state = self.mll.state_dict()
 
         # Load the best model
-        if best_model_state is not None:
-            self.mll.load_state_dict(best_model_state)
+        if best_mll_state is not None:
+            self.mll.load_state_dict(best_mll_state)
 
     def predict(self, X_test):
         if not self.mll.__class__.__name__ == 'VariationalELBO':

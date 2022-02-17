@@ -1,6 +1,6 @@
 import torch
 from gpytorch.kernels import ScaleKernel, RBFKernel
-from skgpytorch.models import ExactGPRegressor, SVGPRegressor, SGPRRegressor
+from skgpytorch.models import ExactGPRegressor, SVGPRegressor, SGPRegressor
 
 n = 128
 d = 5
@@ -20,7 +20,7 @@ def get_exact_gp():
 
 def get_sgpr():
     kernel = ScaleKernel(RBFKernel(ard_num_dims=x.shape[1]))
-    model = SGPRRegressor(x, y, kernel, inducing_points=x[:n_inducing])
+    model = SGPRegressor(x, y, kernel, inducing_points=x[:n_inducing])
     return model
 
 

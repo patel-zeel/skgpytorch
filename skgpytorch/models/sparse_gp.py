@@ -17,13 +17,14 @@ class SGPRModel(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
-class SGPRRegressor(BaseRegressor):
+class SGPRegressor(BaseRegressor):
     """[summary]
     Call the constructor of base class after defining the model.
     """
 
     def __init__(self, train_x, train_y, kernel, inducing_points):
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
-        model = SGPRModel(train_x, train_y, likelihood, kernel, inducing_points)
+        model = SGPRModel(train_x, train_y, likelihood,
+                          kernel, inducing_points)
         mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
         super().__init__(train_x, train_y, mll)
