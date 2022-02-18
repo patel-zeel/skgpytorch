@@ -3,7 +3,7 @@ import gpytorch
 import warnings
 import faiss
 import numpy as np
-
+from tqdm import tqdm
 
 class BaseRegressor(torch.nn.Module):
     def __init__(self, train_x, train_y, mll):
@@ -140,7 +140,7 @@ class BaseRegressor(torch.nn.Module):
             gpu_index.add(x)
             train_nn_idx = torch.from_numpy(gpu_index.search(centroids, nn_size)[1]).long().cuda()
         else:
-            cpu_index.add(x)
+            cpu_index.add(np.ascontiguousarray(x))
             train_nn_idx = torch.from_numpy(cpu_index.search(centroids, nn_size)[1]).long()
         train_nn_idx = train_nn_idx.reshape(-1).unique()
         orig_train_x = self.train_x 
@@ -154,7 +154,7 @@ class BaseRegressor(torch.nn.Module):
             with torch.no_grad(), gpytorch.settings.fast_pred_var():
                 pred_dist = self.predict(x_batch)
                 means.append(pred_dist.mean)
-                variances.append(pred_dist.covar)
+                variances.append(pred_dist.variance)
         self.train_x = orig_train_x
         self.train_y = orig_train_y
 
