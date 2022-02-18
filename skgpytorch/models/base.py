@@ -137,7 +137,7 @@ class BaseRegressor(torch.nn.Module):
         if device == 'gpu':
             res = faiss.StandardGpuResources()
             gpu_index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
-            gpu_index.add(x)
+            gpu_index.add(np.ascontiguousarray(x))
             train_nn_idx = torch.from_numpy(gpu_index.search(centroids, nn_size)[1]).long().cuda()
         else:
             cpu_index.add(np.ascontiguousarray(x))
