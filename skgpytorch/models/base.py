@@ -3,7 +3,6 @@ import gpytorch
 import warnings
 import faiss
 import numpy as np
-from tqdm import tqdm
 
 class BaseRegressor(torch.nn.Module):
     def __init__(self, train_x, train_y, mll):
@@ -18,7 +17,7 @@ class BaseRegressor(torch.nn.Module):
     def compute_nn_idx(self, x, k):
         # TODO: I'll utilize this for 60000/40000 problem
         self.cpu_index = faiss.IndexFlatL2(x.size(-1))
-        x = (x.data.float()).cpu().numpy()
+        x = np.ascontiguousarray((x.data.float()).cpu().numpy())
         self.cpu_index.add(x)
         return torch.from_numpy(self.cpu_index.search(x, k)[1]).long()
 
@@ -115,47 +114,43 @@ class BaseRegressor(torch.nn.Module):
             self.pred_dist = self.mll.likelihood(self.mll.model(X_test))
             return self.pred_dist
 
-    def predict_batch(self, X_test, batch_size, nn_size,device):
+    def predict_batch(self, X_test, batch_size, nn_size):
         # TODO: Work in progress here
         if self.mll.__class__.__name__ == 'VariationalELBO':
             raise NotImplementedError('Batch prediction not implemented for VariationalELBO')
         self.mll.eval()
-        
-        pred_train_len = 40000
-        pred_train_idx = torch.randperm(X_test.shape[0])[:pred_train_len]
-        x = (X_test.data.float()).cpu().numpy()
-        centroids = x[pred_train_idx]
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            # kmeans = faiss.Kmeans(X_test.shape[1], pred_train_len, niter=1024)
+            # kmeans.train(x)
+            # centroids = kmeans.centroids
 
-        # kmeans = faiss.Kmeans(X_test.shape[1], pred_train_len, niter=1024)
-        # kmeans.train(x)
-        # centroids = kmeans.centroids
+            # kmeans = KMeans(n_clusters=pred_train_len, random_state=0).fit(x)
+            # centroids = kmeans.cluster_centers_
 
-        # kmeans = KMeans(n_clusters=pred_train_len, random_state=0).fit(x)
-        # centroids = kmeans.cluster_centers_
-
-        cpu_index = faiss.IndexFlatL2(self.train_x.size(-1))
-        if device == 'gpu':
-            res = faiss.StandardGpuResources()
-            gpu_index = faiss.index_cpu_to_gpu(res, 0, cpu_index)
-            gpu_index.add(np.ascontiguousarray(x))
-            train_nn_idx = torch.from_numpy(gpu_index.search(centroids, nn_size)[1]).long().cuda()
-        else:
-            cpu_index.add(np.ascontiguousarray(x))
-            train_nn_idx = torch.from_numpy(cpu_index.search(centroids, nn_size)[1]).long()
-        train_nn_idx = train_nn_idx.reshape(-1).unique()
-        orig_train_x = self.train_x 
-        orig_train_y = self.train_y 
-
-        self.train_x = self.train_x[train_nn_idx]
-        self.train_y = self.train_y[train_nn_idx]
-        means = []
-        variances = []
-        for x_batch in tqdm(X_test.split(batch_size)):
-            with torch.no_grad(), gpytorch.settings.fast_pred_var():
-                pred_dist = self.predict(x_batch)
-                means.append(pred_dist.mean)
-                variances.append(pred_dist.variance)
-        self.train_x = orig_train_x
-        self.train_y = orig_train_y
+            x = (X_test.data.float()).cpu().numpy()
+            faiss_index = faiss.IndexFlatL2(self.train_x.size(-1))
+            if self.train_x.device == 'cuda':
+                res = faiss.StandardGpuResources()
+                faiss_index = faiss.index_cpu_to_gpu(res, 0, faiss_index)
+                faiss_index.add(np.ascontiguousarray(x))
+            else:
+                faiss_index.add(np.ascontiguousarray(x))
+            
+            orig_train_x = self.train_x 
+            orig_train_y = self.train_y 
+            x_batches = X_test.split(batch_size)
+            means = torch.zeros(len(X_test)).to(self.train_x.device)
+            variances = torch.zeros(len(X_test)).to(self.train_x.device)
+            for i,x_batch in enumerate(x_batches):
+                centroids = np.ascontiguousarray((x_batch.data.float()).cpu().numpy())
+                train_nn_idx = torch.from_numpy(faiss_index.search(centroids, nn_size)[1]).long()
+                train_nn_idx = train_nn_idx.reshape(-1).unique()
+                self.train_x = orig_train_x[train_nn_idx]
+                self.train_y = orig_train_y[train_nn_idx]
+                pred_dist = self.mll.likelihood(self.mll.model(x_batch))
+                means[i*batch_size:(i+1)*batch_size] = pred_dist.mean
+                variances[i*batch_size:(i+1)*batch_size] = pred_dist.variance
+            self.train_x = orig_train_x
+            self.train_y = orig_train_y
 
         return means,variances
