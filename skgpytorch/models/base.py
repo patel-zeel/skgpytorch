@@ -23,7 +23,7 @@ class BaseRegressor(torch.nn.Module):
         return torch.from_numpy(self.cpu_index.search(x, k)[1]).long()
 
     def loss_func(self, X, y):
-        if not self.mll.__class__.__name__ == 'VariationalELBO':
+        if not self.mll.__class__.__name__ == "VariationalELBO":
             self.mll.model.set_train_data(X, y, strict=False)
 
         output = self.mll.model(X)
@@ -38,6 +38,7 @@ class BaseRegressor(torch.nn.Module):
         verbose=0,
         verbose_gap=1,
         random_state=None,
+        trace_back_fn=None,
     ):
         if random_state is not None:
             torch.manual_seed(random_state)
@@ -50,8 +51,7 @@ class BaseRegressor(torch.nn.Module):
         self.optimizer = torch.optim.Adam(self.mll.parameters(), lr=lr)
 
         if batch_mode:
-            train_nn_idx = self.compute_nn_idx(
-                x=self.train_x, k=batch_size)
+            train_nn_idx = self.compute_nn_idx(x=self.train_x, k=batch_size)
 
         X_batch = self.train_x
         y_batch = self.train_y
@@ -68,9 +68,9 @@ class BaseRegressor(torch.nn.Module):
             if restart > 0:  # Don't reset the model if it's the first restart
                 for param in self.mll.parameters():
                     torch.nn.init.normal_(param, mean=0.0, std=1.0)
-            for epoch in range(1, n_epochs+1):
+            for epoch in range(1, n_epochs + 1):
                 loss = 0
-                for iteration in range(1, n_iters+1):
+                for iteration in range(1, n_iters + 1):
                     if batch_mode:
                         idx = torch.randint(
                             low=0, high=self.train_x.shape[0], size=(1,)
@@ -81,8 +81,7 @@ class BaseRegressor(torch.nn.Module):
 
                     self.optimizer.zero_grad()
                     batch_loss = self.loss_func(X_batch, y_batch)
-                    self.history["iter_loss"][restart].append(
-                        batch_loss.item())
+                    self.history["iter_loss"][restart].append(batch_loss.item())
                     batch_loss.backward()
                     loss += batch_loss.item()
                     if verbose and (iteration % verbose_gap) == 0:
@@ -92,6 +91,8 @@ class BaseRegressor(torch.nn.Module):
                             )
                         )
                     self.optimizer.step()
+                    if trace_back_fn is not None:
+                        trace_back_fn(locals=locals(), globals=globals())
                 loss = loss / n_iters
                 self.history["epoch_loss"][restart].append(loss)
 
@@ -106,9 +107,8 @@ class BaseRegressor(torch.nn.Module):
             self.mll.load_state_dict(best_mll_state)
 
     def predict(self, X_test):
-        if not self.mll.__class__.__name__ == 'VariationalELBO':
-            self.mll.model.set_train_data(
-                self.train_x, self.train_y, strict=False)
+        if not self.mll.__class__.__name__ == "VariationalELBO":
+            self.mll.model.set_train_data(self.train_x, self.train_y, strict=False)
 
         self.mll.eval()
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
