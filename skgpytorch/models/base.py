@@ -1,8 +1,7 @@
+from gc import callbacks
+from mimetypes import init
 import torch
-import gpytorch
-import warnings
 import faiss
-import numpy as np
 
 
 class BaseRegressor(torch.nn.Module):
@@ -12,22 +11,35 @@ class BaseRegressor(torch.nn.Module):
         self.train_y = train_y
         self.mll = mll
 
-        self.history = {}
         self.best_restart = None
 
-    def compute_nn_idx(self, x, k):
-        # TODO: I'll utilize this for 60000/40000 problem
-        self.cpu_index = faiss.IndexFlatL2(x.size(-1))
-        x = (x.data.float()).cpu().numpy()
-        self.cpu_index.add(x)
-        return torch.from_numpy(self.cpu_index.search(x, k)[1]).long()
+    def _init_params(self, init_fn=None):
+        if init_fn is None:
+            init_fn = lambda param: torch.nn.init.normal_(param)
+
+        for param in self.mll.parameters():
+            init_fn(param)
+
+    def _compute_nn_idx(self, xd, xq, k):
+        """
+        Not using GPU version because of the limits (max 2048 points)
+        xd: training data
+        xq: query data
+        """
+        self.cpu_index = faiss.IndexFlatL2(xd.size(-1))
+        xd = (xd.data.float()).cpu().numpy()
+        self.cpu_index.add(xd)
+        return torch.from_numpy(self.cpu_index.search(xq, k)[1]).long()
 
     def loss_func(self, X, y):
-        if not self.mll.__class__.__name__ == "VariationalELBO":
+        if self.mll.__class__.__name__ != "VariationalELBO":
             self.mll.model.set_train_data(X, y, strict=False)
 
         output = self.mll.model(X)
         return -self.mll(output, y)
+
+    def predict(self, test_x, include_likelihood=True):
+        return self._predict(self.train_x, self.train_y, test_x, include_likelihood)
 
     def fit(
         self,
@@ -35,42 +47,41 @@ class BaseRegressor(torch.nn.Module):
         lr=0.1,
         n_epochs=1,
         n_restarts=1,
-        verbose=0,
-        verbose_gap=1,
         random_state=None,
-        trace_back_fn=None,
+        callback_fn=None,
+        init_fn=None,
     ):
+        # Set random seed
         if random_state is not None:
             torch.manual_seed(random_state)
+
+        # Batch settings
         if batch_size is None:
             batch_size = self.train_x.shape[0]
-
         assert batch_size > 0 and batch_size <= self.train_x.shape[0]
         batch_mode = False if batch_size == self.train_x.shape[0] else True
-
-        self.optimizer = torch.optim.Adam(self.mll.parameters(), lr=lr)
-
         if batch_mode:
-            train_nn_idx = self.compute_nn_idx(x=self.train_x, k=batch_size)
+            train_nn_idx = self._compute_nn_idx(
+                xd=self.train_x, xq=self.train_x, k=batch_size
+            )
 
+        # Intialize batch data same as training data
         X_batch = self.train_x
         y_batch = self.train_y
-        best_loss = float("inf")
-        n_iters = max(1, self.train_x.shape[0] // batch_size)
-        best_mll_state = None
-        self.history["epoch_loss"] = []
-        self.history["iter_loss"] = []
 
+        # Initialize optimizer
+        best_loss = float("inf")
+        best_mll_state = None
+        self.optimizer = torch.optim.Adam(self.mll.parameters(), lr=lr)
+
+        n_iters = max(1, self.train_x.shape[0] // batch_size)
         self.mll.train()
         for restart in range(n_restarts):
-            self.history["epoch_loss"].append([])
-            self.history["iter_loss"].append([])
             if restart > 0:  # Don't reset the model if it's the first restart
-                for param in self.mll.parameters():
-                    torch.nn.init.normal_(param, mean=0.0, std=1.0)
-            for epoch in range(1, n_epochs + 1):
+                self.init_params(init_fn)
+            for epoch in range(n_epochs):
                 loss = 0
-                for iteration in range(1, n_iters + 1):
+                for iteration in range(n_iters):
                     if batch_mode:
                         idx = torch.randint(
                             low=0, high=self.train_x.shape[0], size=(1,)
@@ -80,23 +91,17 @@ class BaseRegressor(torch.nn.Module):
                         y_batch = self.train_y[indices]
 
                     self.optimizer.zero_grad()
+
                     batch_loss = self.loss_func(X_batch, y_batch)
-                    self.history["iter_loss"][restart].append(batch_loss.item())
                     batch_loss.backward()
                     loss += batch_loss.item()
-                    if verbose and (iteration % verbose_gap) == 0:
-                        print(
-                            "restart: {}, epoch: {}, iter: {}, loss: {:.4f}".format(
-                                restart, epoch, iteration, loss
-                            )
-                        )
+                    if callback_fn is not None:
+                        callback_fn()
+
                     self.optimizer.step()
-                    if trace_back_fn is not None:
-                        trace_back_fn(locals=locals(), globals=globals())
-                loss = loss / n_iters
-                self.history["epoch_loss"][restart].append(loss)
 
             # Check if best loss
+            loss = loss / n_iters
             if loss < best_loss:
                 self.best_restart = restart
                 best_loss = loss
@@ -106,23 +111,41 @@ class BaseRegressor(torch.nn.Module):
         if best_mll_state is not None:
             self.mll.load_state_dict(best_mll_state)
 
-    def predict(self, X_test):
-        if not self.mll.__class__.__name__ == "VariationalELBO":
-            self.mll.model.set_train_data(self.train_x, self.train_y, strict=False)
+        if callback_fn is not None:
+            callback_fn.finalize()
+
+    def predict(self, X, include_likelihood=True):
+        return self._predict(self.train_x, self.train_y, X, include_likelihood)
+
+    def _predict(self, train_x, train_y, test_x, include_likelihood=True):
+        if self.mll.__class__.__name__ != "VariationalELBO":
+            self.mll.model.set_train_data(train_x, train_y, strict=False)
 
         self.mll.eval()
-        with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            self.pred_dist = self.mll.likelihood(self.mll.model(X_test))
-            return self.pred_dist
+        if include_likelihood:
+            pred_dist = self.mll.likelihood(self.mll.model(test_x))
+        else:
+            pred_dist = self.mll.model(test_x)
+        return pred_dist
 
-    def predict_batch(self, X_test, batch_size, nn_size):
-        # TODO: Work in progress here
-        # if self.mll.__class__.__name__ == 'VariationalELBO':
-        #     raise NotImplementedError('Batch prediction not implemented for VariationalELBO')
+    def predict_batch(self, test_x, nn_size):
+        """
+        nn_size: number of nearest neighbors to use for prediction
+        """
+        test_nn_idx = self._compute_nn_idx(xd=self.train_x, xq=test_x, k=nn_size)
 
-        # self.mll.eval()
-        # test_nn_idx = self.compute_nn_idx(self.train_x, nn_size)
-        # with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        #     self.pred_dist = self.mll.likelihood(self.mll.model(X_test))
-        #     return self.pred_dist
-        pass
+        mean = torch.zeros(
+            test_x.shape[0], dtype=self.train_x.dtype, device=test_x.device
+        )
+        variance = torch.zeros(
+            test_x.shape[0], dtype=self.train_x.dtype, device=test_x.device
+        )
+        for i in range(test_x.shape[0]):
+            idx = test_nn_idx[i]
+            pred_dist = self._predict(
+                self.train_x[idx], self.train_y[idx], test_x[i : i + 1]
+            )
+            mean[i] = pred_dist.mean
+            variance[i] = pred_dist.variance
+
+        return torch.distributions.MultivariateNormal(mean, variance.diag())
